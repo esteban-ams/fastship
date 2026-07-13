@@ -7,7 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.3.0] - 2026-03-20
+### Added
+- CLI client subcommands: `deploydeck deploy`, `deploydeck rollback`, `deploydeck logs [-f]`, `deploydeck status`, `deploydeck config` — wrap the HTTP API so day-to-day operation no longer requires hand-written `curl` calls
+- Deployment notifications on terminal state (success/failure/rollback): Slack, Discord, and generic webhook notifiers, each with a 10s non-blocking timeout
+- Embedded web dashboard at `/dashboard/` showing live deployment status, backed by the persistent SQLite store
+- Dashboard light-mode redesign and header logo
+
+## [0.4.0] - 2026-03-21
+
+### Added
+- Persistent deployment storage via SQLite (`storage.db_path` config, `DEPLOYDECK_DB_PATH` env override) — deployment history now survives restarts; falls back to in-memory when unset
+- `POST /api/rollback/:service` fully implemented (previously a stub) — manual rollback to the last tagged snapshot
+- `GET /api/deployments/:id/logs` — real-time deployment log retrieval, polled by `deploydeck logs -f`
+
 
 ### Added
 - One-liner install script (`install.sh`) — auto-detects OS/arch, installs to `/usr/local/bin`
@@ -73,6 +85,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Architecture and code overview documentation
 - Production case study
 
-[Unreleased]: https://github.com/esteban-ams/deploydeck/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/esteban-ams/deploydeck/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/esteban-ams/deploydeck/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/esteban-ams/deploydeck/compare/v0.1.0...v0.3.0
 [0.1.0]: https://github.com/esteban-ams/deploydeck/releases/tag/v0.1.0

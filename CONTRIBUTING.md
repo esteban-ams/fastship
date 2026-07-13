@@ -82,13 +82,18 @@ chore: update dependencies
 ## Project Structure
 
 ```
-cmd/deploydeck/        # Application entry point
+cmd/deploydeck/        # Application entry point + CLI subcommands (init, doctor, deploy, rollback, status, logs, config)
 internal/
   config/            # YAML config + env overrides
   webhook/           # HTTP handlers + auth + payload parsing
   deploy/            # Deployment engine + health checks
   docker/            # Docker CLI wrapper
   git/               # Git clone for build mode
+  storage/           # Deployment history: SQLite or in-memory
+  notify/            # Slack/Discord/webhook notifications
+  dashboard/         # Embedded web dashboard
+  ratelimit/         # Per-IP rate limiting
+  ipwhitelist/       # CIDR allowlist for deploy/rollback endpoints
 ```
 
 See [docs/CODE_OVERVIEW.md](docs/CODE_OVERVIEW.md) for a detailed codebase tour.

@@ -28,7 +28,7 @@ rate_limit:
   burst_size: 5             # maximum burst above the steady rate
 
 dashboard:
-  enabled: false
+  enabled: false                      # set true to serve the embedded dashboard at /dashboard/
   username: "admin"
   password: "change-me"
 
