@@ -47,6 +47,7 @@
       margin-bottom: 24px;
     }
     .header-left { display: flex; align-items: center; gap: 16px; }
+    .logo-svg { width: 22px; height: 22px; flex-shrink: 0; }
     .logo-text { font-size: 1.1rem; font-weight: 700; color: var(--text); letter-spacing: -0.01em; }
     .version-badge {
       font-size: 0.72rem; font-family: var(--mono);
@@ -278,6 +279,13 @@
 
   <header class="header">
     <div class="header-left">
+      <svg class="logo-svg" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1" y="8" width="18" height="10" rx="2" stroke="#1a1a1a" stroke-width="1.5" fill="none"/>
+        <rect x="4" y="11" width="3" height="3" rx="0.5" fill="#e85d3a"/>
+        <rect x="8.5" y="11" width="3" height="3" rx="0.5" fill="#e85d3a" opacity="0.55"/>
+        <rect x="13" y="11" width="3" height="3" rx="0.5" fill="#e85d3a" opacity="0.25"/>
+        <path d="M6 8V5.5a4 4 0 0 1 8 0V8" stroke="#1a1a1a" stroke-width="1.5" fill="none"/>
+      </svg>
       <span class="logo-text">DeployDeck</span>
       <span class="version-badge" id="version-badge">v&mdash;</span>
     </div>
