@@ -11,20 +11,32 @@
       DeployDeck
     </a>
 
-    <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Toggle menu">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <line x1="4" y1="7" x2="20" y2="7"/>
-        <line x1="4" y1="12" x2="20" y2="12"/>
-        <line x1="4" y1="17" x2="20" y2="17"/>
-      </svg>
-    </button>
+    <div class="nav-right">
+      <ul class="nav-links">
+        <li><a href="{{ .Site.BaseURL }}#features">Features</a></li>
+        <li><a href="{{ .Site.BaseURL }}#how-it-works">How It Works</a></li>
+        <li><a href="{{ .Site.BaseURL }}#quickstart">Quick Start</a></li>
+        <li><a href="{{ .Site.BaseURL }}docs/">Docs</a></li>
+        <li><a href="{{ .Site.Params.githubURL }}" class="nav-cta">GitHub</a></li>
+      </ul>
 
-    <ul class="nav-links">
-      <li><a href="{{ .Site.BaseURL }}#features">Features</a></li>
-      <li><a href="{{ .Site.BaseURL }}#how-it-works">How It Works</a></li>
-      <li><a href="{{ .Site.BaseURL }}#quickstart">Quick Start</a></li>
-      <li><a href="{{ .Site.BaseURL }}docs/">Docs</a></li>
-      <li><a href="{{ .Site.Params.githubURL }}" class="nav-cta">GitHub</a></li>
-    </ul>
+      <button class="theme-toggle" id="theme-toggle" aria-label="Toggle color theme">
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="4"/>
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+        </svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>
+        </svg>
+      </button>
+
+      <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Toggle menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <line x1="4" y1="7" x2="20" y2="7"/>
+          <line x1="4" y1="12" x2="20" y2="12"/>
+          <line x1="4" y1="17" x2="20" y2="17"/>
+        </svg>
+      </button>
+    </div>
   </div>
 </nav>

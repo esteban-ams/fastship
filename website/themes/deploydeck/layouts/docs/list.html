@@ -19,6 +19,7 @@
         <span class="docs-sidebar-title">Documentation</span>
       </div>
       <nav class="docs-nav">
+        <span class="docs-nav-indicator" aria-hidden="true"></span>
         <div class="docs-nav-group">
           <div class="docs-nav-group-title">Getting Started</div>
           <a href="#getting-started" class="docs-nav-link">Overview</a>
@@ -94,6 +95,7 @@
 
 <script>
 (function() {
+  var indicator = document.querySelector('.docs-nav-indicator');
   var links = document.querySelectorAll('.docs-nav-link');
   var targets = [];
 
@@ -102,6 +104,14 @@
     var el = document.getElementById(id);
     if (el) targets.push({ el: el, link: link });
   });
+
+  function moveIndicator(link) {
+    if (!indicator) return;
+    if (!link) { indicator.classList.remove('is-active'); return; }
+    indicator.style.transform = 'translateY(' + link.offsetTop + 'px)';
+    indicator.style.height = link.offsetHeight + 'px';
+    indicator.classList.add('is-active');
+  }
 
   function updateActive() {
     var scrollPos = window.scrollY + 140;
@@ -115,6 +125,7 @@
 
     links.forEach(function(l) { l.classList.remove('active'); });
     if (active) active.classList.add('active');
+    moveIndicator(active);
   }
 
   window.addEventListener('scroll', updateActive);
@@ -133,6 +144,28 @@
       }
     });
   });
+
+
+  // Reveal doc sections as they scroll into view
+  var docSections = document.querySelectorAll('.docs-section');
+  if (docSections.length) {
+    if (!('IntersectionObserver' in window)) {
+      docSections.forEach(function(el) { el.classList.add('will-reveal', 'is-shown'); });
+    } else {
+      var sectionObserver = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-shown');
+            sectionObserver.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.1, rootMargin: '0px 0px -60px 0px' });
+      docSections.forEach(function(el) {
+        el.classList.add('will-reveal');
+        sectionObserver.observe(el);
+      });
+    }
+  }
 })();
 </script>
 {{ end }}

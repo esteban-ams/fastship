@@ -2,12 +2,12 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
-    <loc>http://localhost:1315/deploydeck/categories/</loc>
+    <loc>https://esteban-ams.github.io/deploydeck/categories/</loc>
   </url><url>
-    <loc>http://localhost:1315/deploydeck/</loc>
+    <loc>https://esteban-ams.github.io/deploydeck/</loc>
   </url><url>
-    <loc>http://localhost:1315/deploydeck/docs/</loc>
+    <loc>https://esteban-ams.github.io/deploydeck/docs/</loc>
   </url><url>
-    <loc>http://localhost:1315/deploydeck/tags/</loc>
+    <loc>https://esteban-ams.github.io/deploydeck/tags/</loc>
   </url>
 </urlset>

@@ -1,15 +1,22 @@
 <section class="hero" id="hero">
-  <div class="container">
-    <div class="hero-grid">
-      <div class="hero-content">
-        <div class="hero-badge">Open Source</div>
-        <h1>Deploy<br>Deck</h1>
-        <p class="hero-tagline">Your container deployment command center</p>
-        <p class="hero-subtitle">
+  <div class="hero-text">
+    <div class="hero-aurora" aria-hidden="true">
+      <span class="aurora-blob aurora-blob--1"></span>
+      <span class="aurora-blob aurora-blob--2"></span>
+      <span class="aurora-blob aurora-blob--3"></span>
+    </div>
+    <div class="container">
+      <div class="hero-inner t-stagger" id="hero-stagger">
+        <div class="hero-badge t-stagger-line t-stagger-line--1">Open Source</div>
+
+        <h1 class="t-stagger-line t-stagger-line--2">The fastest, simplest way to <em>deploy</em> your code</h1>
+
+        <p class="hero-subtitle t-stagger-line t-stagger-line--3">
           A lightweight webhook server that automates Docker Compose deployments.
           Push your code, DeployDeck handles the rest.
         </p>
-        <div class="hero-actions">
+
+        <div class="hero-actions t-stagger-line t-stagger-line--4">
           <a href="#quickstart" class="btn-primary">
             Get Started
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -19,43 +26,55 @@
             View on GitHub
           </a>
         </div>
-      </div>
 
-      <div class="terminal">
-        <div class="terminal-header">
-          <span class="terminal-dot"></span>
-          <span class="terminal-dot"></span>
-          <span class="terminal-dot"></span>
-          <span class="terminal-title">deploydeck deploy</span>
-        </div>
-        <div class="terminal-body">
-          <div class="terminal-line">
-            <span class="t-prompt">$</span> <span class="t-cmd">deploydeck</span> <span class="t-flag">--config config.yaml</span>
+        <a href="#hero-terminal" class="hero-scroll-cue t-stagger-line t-stagger-line--5" aria-label="Scroll to watch DeployDeck deploy">
+          <span>See it deploy</span>
+          <svg class="hero-scroll-cue-icon" width="14" height="8" viewBox="0 0 14 8" fill="none" aria-hidden="true"><path d="M1 1l6 6 6-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="hero-terminal-section">
+    <div class="container">
+      <div class="terminal-shell reveal" id="hero-terminal" data-typewriter>
+        <div class="terminal">
+          <div class="terminal-header">
+            <span class="terminal-dot"></span>
+            <span class="terminal-dot"></span>
+            <span class="terminal-dot"></span>
+            <span class="terminal-title">deploydeck deploy</span>
           </div>
-          <div class="terminal-line">
-            <span class="t-info">[INFO]</span> <span class="t-dim">Server listening on :8000</span>
-          </div>
-          <div class="terminal-line">
-            <span class="t-info">[INFO]</span> <span class="t-dim">Webhook received for</span> <span class="t-cmd">api-service</span>
-          </div>
-          <div class="terminal-line">
-            <span class="t-ok">&nbsp; &#10003;</span> <span class="t-dim">Pulling image</span> <span class="t-cmd">ghcr.io/app:v1.4.2</span>
-          </div>
-          <div class="terminal-line">
-            <span class="t-ok">&nbsp; &#10003;</span> <span class="t-dim">Saved rollback tag</span> <span class="t-cmd">api-service:rollback</span>
-          </div>
-          <div class="terminal-line">
-            <span class="t-ok">&nbsp; &#10003;</span> <span class="t-dim">Running docker compose up</span>
-          </div>
-          <div class="terminal-line">
-            <span class="t-ok">&nbsp; &#10003;</span> <span class="t-dim">Health check passed</span> <span class="t-ok">(200 OK)</span>
-          </div>
-          <div class="terminal-line">&nbsp;</div>
-          <div class="terminal-line">
-            <span class="t-ok">&#9679;</span> <span class="t-warn">Deploy successful</span> <span class="t-dim">in 12.4s</span>
+          <div class="terminal-body">
+            <div class="terminal-line term-line--cmd">
+              <span class="t-prompt">$</span> <span class="t-cmd" data-type>deploydeck</span> <span class="t-flag" data-type>--config config.yaml</span><span class="term-cursor" aria-hidden="true"></span>
+            </div>
+            <div class="terminal-line term-line--out">
+              <span class="t-info">[INFO]</span> <span class="t-dim">Server listening on :8000</span>
+            </div>
+            <div class="terminal-line term-line--out">
+              <span class="t-info">[INFO]</span> <span class="t-dim">Webhook received for</span> <span class="t-cmd">api-service</span>
+            </div>
+            <div class="terminal-line term-line--out">
+              <span class="t-ok">&nbsp; &#10003;</span> <span class="t-dim">Pulling image</span> <span class="t-cmd">ghcr.io/app:v1.4.2</span>
+            </div>
+            <div class="terminal-line term-line--out">
+              <span class="t-ok">&nbsp; &#10003;</span> <span class="t-dim">Saved rollback tag</span> <span class="t-cmd">api-service:rollback</span>
+            </div>
+            <div class="terminal-line term-line--out">
+              <span class="t-ok">&nbsp; &#10003;</span> <span class="t-dim">Running docker compose up</span>
+            </div>
+            <div class="terminal-line term-line--out">
+              <span class="t-ok">&nbsp; &#10003;</span> <span class="t-dim">Health check passed</span> <span class="t-ok">(200 OK)</span>
+            </div>
+            <div class="terminal-line term-line--out">&nbsp;</div>
+            <div class="terminal-line term-line--out">
+              <span class="t-ok">&#9679;</span> <span class="t-warn">Deploy successful</span> <span class="t-dim">in 12.4s</span>
+            </div>
           </div>
         </div>
       </div>
     </div>
   </div>
 </section>
+

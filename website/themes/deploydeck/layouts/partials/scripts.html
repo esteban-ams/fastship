@@ -40,4 +40,97 @@
       setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
     });
   }
+
+  // Hero entrance: staggered reveal on load
+  (function() {
+    var hero = document.getElementById('hero-stagger');
+    if (!hero) return;
+    requestAnimationFrame(function() {
+      requestAnimationFrame(function() { hero.classList.add('is-shown'); });
+    });
+  })();
+
+  // Terminal typewriter: types the command line, then cascades the output log
+  function startTerminalTypewriter(root) {
+    var cmdLine = root.querySelector('.term-line--cmd');
+    var outLines = Array.prototype.slice.call(root.querySelectorAll('.term-line--out'));
+    var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (reduceMotion) {
+      outLines.forEach(function(line) { line.classList.add('is-typed'); });
+      return;
+    }
+
+    function typeSegments(line, onDone) {
+      var segments = Array.prototype.slice.call(line.querySelectorAll('[data-type]'));
+      var queue = [];
+      segments.forEach(function(seg) {
+        var text = seg.textContent;
+        seg.textContent = '';
+        for (var i = 0; i < text.length; i++) queue.push({ seg: seg, ch: text[i] });
+      });
+      var i = 0;
+      (function step() {
+        if (i >= queue.length) { onDone(); return; }
+        queue[i].seg.textContent += queue[i].ch;
+        i++;
+        setTimeout(step, 26 + Math.random() * 34);
+      })();
+    }
+
+    function cascadeOutput() {
+      var cursor = cmdLine && cmdLine.querySelector('.term-cursor');
+      if (cursor) {
+        cursor.classList.remove('term-cursor--blink');
+        cursor.classList.add('term-cursor--fade');
+      }
+      outLines.forEach(function(line, idx) {
+        setTimeout(function() { line.classList.add('is-typed'); }, 260 + idx * 190);
+      });
+    }
+
+    if (!cmdLine) { cascadeOutput(); return; }
+    var cursor = cmdLine.querySelector('.term-cursor');
+    if (cursor) cursor.classList.add('term-cursor--blink');
+    setTimeout(function() { typeSegments(cmdLine, cascadeOutput); }, 420);
+  }
+
+  // Scroll-triggered reveal for cards, steps, and other .reveal elements
+  (function() {
+    var els = document.querySelectorAll('.reveal');
+    if (!els.length) return;
+    if (!('IntersectionObserver' in window)) {
+      els.forEach(function(el) {
+        el.classList.add('is-shown');
+        if (el.hasAttribute('data-typewriter')) startTerminalTypewriter(el);
+      });
+      return;
+    }
+    var observer = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-shown');
+          if (entry.target.hasAttribute('data-typewriter')) startTerminalTypewriter(entry.target);
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
+    els.forEach(function(el) { observer.observe(el); });
+  })();
+
+  // Theme toggle
+  (function() {
+    var btn = document.getElementById('theme-toggle');
+    if (!btn) return;
+    btn.addEventListener('click', function() {
+      var isLight = document.documentElement.getAttribute('data-theme') === 'light';
+      if (isLight) {
+        document.documentElement.removeAttribute('data-theme');
+        localStorage.setItem('deploydeck-theme', 'dark');
+      } else {
+        document.documentElement.setAttribute('data-theme', 'light');
+        localStorage.setItem('deploydeck-theme', 'light');
+      }
+    });
+  })();
 </script>
