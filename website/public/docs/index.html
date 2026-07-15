@@ -1708,7 +1708,7 @@ button:focus-visible,
 <p><strong>Note:</strong> DeployDeck needs access to the Docker socket to manage containers.</p>
 </blockquote>
 <h4 id="from-source">From Source</h4>
-<p>Build from source requires Go 1.22+:</p>
+<p>Build from source requires Go 1.25+:</p>
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>git clone https://github.com/esteban-ams/deploydeck.git
 </span></span><span style="display:flex;"><span>cd deploydeck
 </span></span><span style="display:flex;"><span>go mod download
@@ -1752,9 +1752,9 @@ button:focus-visible,
 <li>An <strong>authentication secret</strong> for webhook verification</li>
 <li>At least one <strong>service</strong> definition with a compose file path</li>
 </ul>
-<p>Configuration values can be set via (in order of precedence):</p>
+<p>Configuration values are loaded from <code>config.yaml</code>, then overridden by environment variables. Only one CLI flag participates in this precedence — <code>--port</code> overrides <code>server.port</code> after the file and environment variables are already loaded; <code>--config</code> isn&rsquo;t an override, it just tells DeployDeck which YAML file to load.</p>
 <ol>
-<li><strong>CLI flags</strong> (<code>--port</code>, <code>--config</code>)</li>
+<li><strong><code>--port</code> flag</strong> (server only)</li>
 <li><strong>Environment variables</strong> (<code>DEPLOYDECK_*</code>)</li>
 <li><strong>Config file</strong> (<code>config.yaml</code>)</li>
 <li><strong>Default values</strong></li>
@@ -1771,6 +1771,10 @@ button:focus-visible,
 </span></span><span style="display:flex;"><span>    <span style="color:#f92672">enabled</span>: <span style="color:#66d9ef">false</span>                    <span style="color:#75715e"># Enable TLS</span>
 </span></span><span style="display:flex;"><span>    <span style="color:#f92672">cert_file</span>: <span style="color:#e6db74">&#34;/path/to/cert.pem&#34;</span>    <span style="color:#75715e"># TLS certificate path</span>
 </span></span><span style="display:flex;"><span>    <span style="color:#f92672">key_file</span>: <span style="color:#e6db74">&#34;/path/to/key.pem&#34;</span>      <span style="color:#75715e"># TLS private key path</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e"># ip_whitelist restricts /api/deploy and /api/rollback to specific IPs/CIDRs.</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e"># /api/health and /api/deployments are never filtered. Empty/omitted = allow all.</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e"># ip_whitelist:</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e">#   - &#34;10.0.0.0/8&#34;</span>
 </span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span><span style="color:#f92672">auth</span>:
 </span></span><span style="display:flex;"><span>  <span style="color:#f92672">webhook_secret</span>: <span style="color:#e6db74">&#34;your-secret&#34;</span>       <span style="color:#75715e"># REQUIRED - webhook auth secret</span>
@@ -1782,12 +1786,26 @@ button:focus-visible,
 </span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span><span style="color:#f92672">dashboard</span>:
 </span></span><span style="display:flex;"><span>  <span style="color:#f92672">enabled</span>: <span style="color:#66d9ef">false</span>                      <span style="color:#75715e"># Enable dashboard at /dashboard/</span>
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">username</span>: <span style="color:#e6db74">&#34;admin&#34;</span>
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">password</span>: <span style="color:#e6db74">&#34;change-me&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">username</span>: <span style="color:#e6db74">&#34;admin&#34;</span>                   <span style="color:#75715e"># Optional -- with password, enables HTTP Basic Auth</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">password</span>: <span style="color:#e6db74">&#34;change-me&#34;</span>               <span style="color:#75715e"># Optional -- both must be set to enable Basic Auth</span>
 </span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">logging</span>:
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">level</span>: <span style="color:#e6db74">&#34;info&#34;</span>                       <span style="color:#75715e"># Log level: debug, info, warn, error</span>
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">format</span>: <span style="color:#e6db74">&#34;text&#34;</span>                      <span style="color:#75715e"># Output format: json, text</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">logging</span>:                              <span style="color:#75715e"># Parsed and defaulted, but not yet wired into log</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">level</span>: <span style="color:#e6db74">&#34;info&#34;</span>                       <span style="color:#75715e"># output -- logging currently always goes through</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">format</span>: <span style="color:#e6db74">&#34;text&#34;</span>                      <span style="color:#75715e"># Go&#39;s standard `log` package regardless of these.</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">storage</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">db_path</span>: <span style="color:#e6db74">&#34;&#34;</span>                         <span style="color:#75715e"># SQLite file path; empty = in-memory (history lost on restart)</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">notifications</span>:                        <span style="color:#75715e"># Fired on deployment success/failure/rollback</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">on_failure: true                    # default</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">on_rollback: true                   # default</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e"># on_success: false                 # default: false</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e"># slack:</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e">#   webhook_url: &#34;https://hooks.slack.com/services/...&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e"># discord:</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e">#   webhook_url: &#34;https://discord.com/api/webhooks/...&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e"># webhook:</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e">#   url: &#34;https://example.com/hooks/deploydeck&#34;</span>
 </span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span><span style="color:#f92672">services</span>:
 </span></span><span style="display:flex;"><span>  <span style="color:#f92672">myapp</span>:
@@ -1870,6 +1888,11 @@ button:focus-visible,
           <td><code>DEPLOYDECK_RATE_LIMIT_BURST</code></td>
           <td><code>rate_limit.burst_size</code></td>
           <td><code>5</code></td>
+      </tr>
+      <tr>
+          <td><code>DEPLOYDECK_DB_PATH</code></td>
+          <td><code>storage.db_path</code></td>
+          <td><code>/var/lib/deploydeck/deployments.db</code></td>
       </tr>
   </tbody>
 </table>
@@ -2057,7 +2080,7 @@ button:focus-visible,
       </tr>
   </tbody>
 </table>
-<p>All methods use constant-time comparison (<code>hmac.Equal()</code>) to prevent timing attacks.</p>
+<p>All methods use constant-time comparison to prevent timing attacks: <code>hmac.Equal()</code> for the two HMAC-signature paths (GitHub, and DeployDeck when the secret is <code>sha256=...</code>), <code>subtle.ConstantTimeCompare()</code> for the plain GitLab token and plain DeployDeck secret paths.</p>
 <p><strong>Authentication check order:</strong></p>
 <ol>
 <li>GitHub <code>X-Hub-Signature-256</code> header (HMAC-SHA256 verification)</li>
@@ -2111,17 +2134,21 @@ button:focus-visible,
 <li><code>429</code> - Rate limit exceeded</li>
 </ul>
 <h3 id="post-apirollbackservice">POST /api/rollback/:service</h3>
-<p>Manually trigger a rollback for the specified service. Requires authentication.</p>
-<blockquote>
-<p><strong>Note:</strong> This endpoint is currently a stub and will be fully implemented with persistent storage in a future release.</p>
-</blockquote>
+<p>Roll the service back to its last tagged snapshot. Requires the same authentication as <code>/api/deploy/:service</code>. Fails with <code>404</code> if no rollback tag exists yet (i.e. the service has never deployed successfully with rollback enabled).</p>
 <p><strong>URL Parameters:</strong></p>
 <ul>
 <li><code>:service</code> - The service name as defined in your config.yaml</li>
 </ul>
 <p><strong>Request Headers:</strong> Same as deploy endpoint.</p>
-<h3 id="get-apideployments">GET /api/deployments</h3>
-<p>List all deployments stored in memory. Deployments are not persisted across restarts.</p>
+<p><strong>Response:</strong></p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;status&#34;</span>: <span style="color:#e6db74">&#34;success&#34;</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;deployment_id&#34;</span>: <span style="color:#e6db74">&#34;dep_124&#34;</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;service&#34;</span>: <span style="color:#e6db74">&#34;myapp&#34;</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;message&#34;</span>: <span style="color:#e6db74">&#34;rolled back to myapp:rollback-1707750000&#34;</span>
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><h3 id="get-apideployments">GET /api/deployments</h3>
+<p>List all deployments. Requires authentication (same three methods as deploy/rollback). SQLite-backed (persists across restarts) when <code>storage.db_path</code> is set; otherwise in-memory only (history lost on restart).</p>
 <p><strong>Response:</strong></p>
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{
 </span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;deployments&#34;</span>: [
@@ -2168,7 +2195,10 @@ button:focus-visible,
       </tr>
   </tbody>
 </table>
-<h3 id="get-apihealth">GET /api/health</h3>
+<h3 id="get-apideploymentsidlogs">GET /api/deployments/:id/logs</h3>
+<p>Log lines for a single deployment, polled by <code>deploydeck logs -f</code>. No authentication required.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{<span style="color:#f92672">&#34;deployment_id&#34;</span>: <span style="color:#e6db74">&#34;dep_123&#34;</span>, <span style="color:#f92672">&#34;service&#34;</span>: <span style="color:#e6db74">&#34;myapp&#34;</span>, <span style="color:#f92672">&#34;status&#34;</span>: <span style="color:#e6db74">&#34;success&#34;</span>, <span style="color:#f92672">&#34;logs&#34;</span>: [<span style="color:#e6db74">&#34;pulling image...&#34;</span>, <span style="color:#e6db74">&#34;starting container...&#34;</span>, <span style="color:#e6db74">&#34;health check passed&#34;</span>]}
+</span></span></code></pre></div><h3 id="get-apihealth">GET /api/health</h3>
 <p>Health check endpoint returning server status, version, and uptime.</p>
 <p><strong>Response:</strong></p>
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{
@@ -2191,17 +2221,30 @@ button:focus-visible,
 </span></span></code></pre></div><p><strong>3. Create the systemd service file:</strong></p>
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-ini" data-lang="ini"><span style="display:flex;"><span><span style="color:#75715e"># /etc/systemd/system/deploydeck.service</span>
 </span></span><span style="display:flex;"><span><span style="color:#66d9ef">[Unit]</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">Description</span><span style="color:#f92672">=</span><span style="color:#e6db74">DeployDeck - Container Deployment Server</span>
-</span></span><span style="display:flex;"><span><span style="color:#a6e22e">After</span><span style="color:#f92672">=</span><span style="color:#e6db74">network.target docker.service</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">Description</span><span style="color:#f92672">=</span><span style="color:#e6db74">DeployDeck - Your container deployment command center</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">After</span><span style="color:#f92672">=</span><span style="color:#e6db74">docker.service</span>
 </span></span><span style="display:flex;"><span><span style="color:#a6e22e">Requires</span><span style="color:#f92672">=</span><span style="color:#e6db74">docker.service</span>
 </span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span><span style="color:#66d9ef">[Service]</span>
 </span></span><span style="display:flex;"><span><span style="color:#a6e22e">Type</span><span style="color:#f92672">=</span><span style="color:#e6db74">simple</span>
 </span></span><span style="display:flex;"><span><span style="color:#a6e22e">User</span><span style="color:#f92672">=</span><span style="color:#e6db74">root</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">Group</span><span style="color:#f92672">=</span><span style="color:#e6db74">docker</span>
 </span></span><span style="display:flex;"><span><span style="color:#a6e22e">WorkingDirectory</span><span style="color:#f92672">=</span><span style="color:#e6db74">/opt/deploydeck</span>
 </span></span><span style="display:flex;"><span><span style="color:#a6e22e">ExecStart</span><span style="color:#f92672">=</span><span style="color:#e6db74">/usr/local/bin/deploydeck --config /opt/deploydeck/config.yaml</span>
 </span></span><span style="display:flex;"><span><span style="color:#a6e22e">Restart</span><span style="color:#f92672">=</span><span style="color:#e6db74">always</span>
 </span></span><span style="display:flex;"><span><span style="color:#a6e22e">RestartSec</span><span style="color:#f92672">=</span><span style="color:#e6db74">5</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Security</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">NoNewPrivileges</span><span style="color:#f92672">=</span><span style="color:#e6db74">true</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">PrivateTmp</span><span style="color:#f92672">=</span><span style="color:#e6db74">true</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Logging</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">StandardOutput</span><span style="color:#f92672">=</span><span style="color:#e6db74">journal</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">StandardError</span><span style="color:#f92672">=</span><span style="color:#e6db74">journal</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">SyslogIdentifier</span><span style="color:#f92672">=</span><span style="color:#e6db74">deploydeck</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Environment</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">Environment</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;DEPLOYDECK_LOG_LEVEL=info&#34;</span>
 </span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span><span style="color:#66d9ef">[Install]</span>
 </span></span><span style="display:flex;"><span><span style="color:#a6e22e">WantedBy</span><span style="color:#f92672">=</span><span style="color:#e6db74">multi-user.target</span>
@@ -2278,8 +2321,11 @@ button:focus-visible,
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># If running on port 9000</span>
 </span></span><span style="display:flex;"><span>open http://localhost:9000/dashboard/
 </span></span></code></pre></div><h3 id="authentication">Authentication</h3>
-<p>The dashboard reads deployment data from <code>GET /api/deployments</code>, which requires the same <code>webhook_secret</code> used for webhook authentication.</p>
-<p>On first visit, enter your secret in the <strong>API Secret</strong> field in the top-right corner and click <strong>Save</strong>. The secret is stored in <code>localStorage</code> and sent as <code>X-DeployDeck-Secret</code> on every request. It persists across page reloads.</p>
+<p>The dashboard has two independent layers of protection:</p>
+<ol>
+<li><strong>Page-level (optional):</strong> set both <code>dashboard.username</code> and <code>dashboard.password</code> in <code>config.yaml</code> to protect <code>/dashboard/*</code> with HTTP Basic Auth (constant-time credential comparison). Leave either blank to disable this layer.</li>
+<li><strong>API-level:</strong> the dashboard&rsquo;s own JavaScript reads deployment data from <code>GET /api/deployments</code>, which always requires the same <code>webhook_secret</code> used for webhook authentication. On first visit, enter your secret in the <strong>API Secret</strong> field in the top-right corner and click <strong>Save</strong>. The secret is stored in <code>localStorage</code> and sent as <code>X-DeployDeck-Secret</code> on every request; it persists across page reloads.</li>
+</ol>
 <h3 id="services">Services</h3>
 <p>The top section shows one card per service, reflecting its most recent deployment:</p>
 <ul>
@@ -2330,14 +2376,16 @@ button:focus-visible,
 <p>Click <strong>View Logs</strong> on any deployment to open a modal with the full log output captured during that deployment. Log lines are color-coded: errors in red, warnings in amber. For running deployments, the view scrolls to the latest line automatically.</p>
 <h3 id="configuration-reference">Configuration Reference</h3>
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">dashboard</span>:
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">enabled</span>: <span style="color:#66d9ef">false</span>   <span style="color:#75715e"># Set to true to enable the dashboard at /dashboard/</span>
-</span></span></code></pre></div><p>There are no username/password fields currently enforced by the dashboard — access is controlled solely by the <code>webhook_secret</code>.</p>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">enabled</span>: <span style="color:#66d9ef">false</span>     <span style="color:#75715e"># Set to true to serve the dashboard at /dashboard/</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">username</span>: <span style="color:#e6db74">&#34;admin&#34;</span>     <span style="color:#75715e"># Optional -- with password, enables HTTP Basic Auth on /dashboard/*</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">password</span>: <span style="color:#e6db74">&#34;change-me&#34;</span> <span style="color:#75715e"># Optional -- both must be set to enable Basic Auth</span>
+</span></span></code></pre></div><p>Basic Auth (page-level) is separate from the <code>webhook_secret</code> entered in the dashboard UI (API-level) — see Authentication above.</p>
 </section>
 <section id="cli-reference" class="docs-section">
 <h2 id="cli-reference">CLI Reference</h2>
-<p>DeployDeck provides a CLI with several subcommands for managing and inspecting your deployment server.</p>
+<p><code>cmd/deploydeck</code> is a single Cobra binary. Run it with no subcommand to start the webhook server; every other subcommand is a thin HTTP client against a running server.</p>
 <h3 id="deploydeck">deploydeck</h3>
-<p>The main command starts the DeployDeck webhook server.</p>
+<p>The default (no subcommand) invocation starts the webhook server.</p>
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>deploydeck <span style="color:#f92672">[</span>flags<span style="color:#f92672">]</span>
 </span></span></code></pre></div><p><strong>Flags:</strong></p>
 <table>
@@ -2350,19 +2398,24 @@ button:focus-visible,
   </thead>
   <tbody>
       <tr>
-          <td><code>--config</code></td>
+          <td><code>--config</code>, <code>-c</code></td>
           <td>Path to configuration file</td>
           <td><code>config.yaml</code></td>
       </tr>
       <tr>
           <td><code>--port</code></td>
-          <td>Server listen port</td>
-          <td><code>9000</code></td>
+          <td>Server listen port (overrides <code>server.port</code>)</td>
+          <td>(from config)</td>
       </tr>
       <tr>
-          <td><code>--version</code></td>
-          <td>Print version and exit</td>
-          <td>-</td>
+          <td><code>--server</code>, <code>-s</code></td>
+          <td>Remote server URL (client subcommands only)</td>
+          <td><code>http://localhost:9000</code> or <code>$DEPLOYDECK_SERVER</code></td>
+      </tr>
+      <tr>
+          <td><code>--secret</code></td>
+          <td>Auth secret sent as <code>X-DeployDeck-Secret</code> (client subcommands only)</td>
+          <td><code>$DEPLOYDECK_SECRET</code></td>
       </tr>
   </tbody>
 </table>
@@ -2372,37 +2425,45 @@ button:focus-visible,
 </span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span><span style="color:#75715e"># Start with custom config and port</span>
 </span></span><span style="display:flex;"><span>deploydeck --config /opt/deploydeck/config.yaml --port <span style="color:#ae81ff">8080</span>
-</span></span><span style="display:flex;"><span>
-</span></span><span style="display:flex;"><span><span style="color:#75715e"># Print version</span>
-</span></span><span style="display:flex;"><span>deploydeck --version
-</span></span></code></pre></div><h3 id="deploydeck-doctor">deploydeck doctor</h3>
-<p>Checks the system environment and reports any issues that might prevent DeployDeck from running correctly.</p>
+</span></span></code></pre></div><p>There is no <code>--version</code> flag — use the <code>version</code> subcommand instead (below).</p>
+<h3 id="deploydeck-init">deploydeck init</h3>
+<p>Interactively scaffolds <code>config.yaml</code> for a single service, generates a random webhook secret, and prints a ready-to-paste CI/CD snippet.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>deploydeck init --service myapp --compose-file /opt/apps/docker-compose.yml
+</span></span></code></pre></div><p><strong>Key flags:</strong> <code>--service</code>, <code>--compose-file</code>, <code>--service-name</code>, <code>--working-dir</code>, <code>--mode</code> (<code>pull</code>|<code>build</code>, default <code>pull</code>), <code>--health-url</code>, <code>--branch</code> (default <code>main</code>), <code>--repo</code>, <code>--webhook-secret</code>, <code>--public-url</code>, <code>--ci</code> (<code>github</code>|<code>gitlab</code>|<code>none</code>, default <code>github</code>), <code>--yes</code>/<code>-y</code> (skip prompts; requires <code>--service</code> and <code>--compose-file</code>), <code>--force</code> (overwrite an existing config file).</p>
+<h3 id="deploydeck-doctor">deploydeck doctor</h3>
+<p>Checks the local environment and configuration.</p>
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>deploydeck doctor
 </span></span></code></pre></div><p><strong>Checks performed:</strong></p>
 <ul>
-<li>Docker is installed and accessible</li>
-<li>Docker Compose is available</li>
-<li>Configuration file is valid</li>
-<li>Required directories exist</li>
-<li>Docker socket is accessible</li>
+<li>Docker CLI available</li>
+<li>Docker daemon running</li>
+<li>Docker Compose available</li>
+<li>Git available (warning only — needed for build mode)</li>
+<li>Config file loads and validates</li>
+<li>At least one service is configured</li>
 </ul>
-<h3 id="deploydeck-status">deploydeck status</h3>
-<p>Shows the current status of the DeployDeck server and recent deployments.</p>
+<h3 id="deploydeck-deploy">deploydeck deploy</h3>
+<p>Triggers a deployment via <code>POST /api/deploy/:service</code>.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>deploydeck deploy myapp --image ghcr.io/user/myapp --tag v1.2.3
+</span></span></code></pre></div><p>In pull mode, pass <code>--image</code> and <code>--tag</code>. In build mode, the server uses the repository configured in <code>config.yaml</code> — no flags needed.</p>
+<h3 id="deploydeck-rollback">deploydeck rollback</h3>
+<p>Triggers a manual rollback via <code>POST /api/rollback/:service</code>.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>deploydeck rollback myapp
+</span></span></code></pre></div><h3 id="deploydeck-status">deploydeck status</h3>
+<p>Calls <code>GET /api/deployments</code> and prints the most recent deployment per service (service, status, image, age) as a table.</p>
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>deploydeck status
-</span></span></code></pre></div><p><strong>Output includes:</strong></p>
-<ul>
-<li>Server running state</li>
-<li>Number of configured services</li>
-<li>Recent deployment history</li>
-<li>Current service states</li>
-</ul>
-<h3 id="deploydeck-version">deploydeck version</h3>
-<p>Prints the DeployDeck version, build date, and commit hash.</p>
+</span></span></code></pre></div><h3 id="deploydeck-logs">deploydeck logs</h3>
+<p>Prints the logs for the most recent deployment of a service.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>deploydeck logs myapp -f
+</span></span></code></pre></div><p>With <code>--follow</code>/<code>-f</code>, polls every 2 seconds and prints new lines as they appear, stopping automatically once the deployment reaches a terminal state (<code>success</code>, <code>failed</code>, or <code>rolled_back</code>).</p>
+<h3 id="deploydeck-config">deploydeck config</h3>
+<p>Prints the services configured in the local <code>config.yaml</code> (mode, branch, health check, rollback, timeout) plus the configured server address — reads the file directly, no running server required.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>deploydeck config
+</span></span></code></pre></div><h3 id="deploydeck-version">deploydeck version</h3>
+<p>Prints the build version.</p>
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>deploydeck version
 </span></span></code></pre></div><p><strong>Example output:</strong></p>
-<pre tabindex="0"><code>DeployDeck v0.1.0
-Build date: 2026-02-12
-Commit: a1b2c3d
+<pre tabindex="0"><code>DeployDeck dev
 </code></pre></section>
 
     </div>

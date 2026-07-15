@@ -72,7 +72,7 @@ docker compose up -d
 
 #### From Source
 
-Build from source requires Go 1.22+:
+Build from source requires Go 1.25+:
 
 ```bash
 git clone https://github.com/esteban-ams/deploydeck.git
@@ -143,9 +143,9 @@ DeployDeck uses a YAML configuration file. The minimum configuration requires:
 - An **authentication secret** for webhook verification
 - At least one **service** definition with a compose file path
 
-Configuration values can be set via (in order of precedence):
+Configuration values are loaded from `config.yaml`, then overridden by environment variables. Only one CLI flag participates in this precedence — `--port` overrides `server.port` after the file and environment variables are already loaded; `--config` isn't an override, it just tells DeployDeck which YAML file to load.
 
-1. **CLI flags** (`--port`, `--config`)
+1. **`--port` flag** (server only)
 2. **Environment variables** (`DEPLOYDECK_*`)
 3. **Config file** (`config.yaml`)
 4. **Default values**
@@ -168,6 +168,10 @@ server:
     enabled: false                    # Enable TLS
     cert_file: "/path/to/cert.pem"    # TLS certificate path
     key_file: "/path/to/key.pem"      # TLS private key path
+  # ip_whitelist restricts /api/deploy and /api/rollback to specific IPs/CIDRs.
+  # /api/health and /api/deployments are never filtered. Empty/omitted = allow all.
+  # ip_whitelist:
+  #   - "10.0.0.0/8"
 
 auth:
   webhook_secret: "your-secret"       # REQUIRED - webhook auth secret
@@ -179,12 +183,26 @@ rate_limit:
 
 dashboard:
   enabled: false                      # Enable dashboard at /dashboard/
-  username: "admin"
-  password: "change-me"
+  username: "admin"                   # Optional -- with password, enables HTTP Basic Auth
+  password: "change-me"               # Optional -- both must be set to enable Basic Auth
 
-logging:
-  level: "info"                       # Log level: debug, info, warn, error
-  format: "text"                      # Output format: json, text
+logging:                              # Parsed and defaulted, but not yet wired into log
+  level: "info"                       # output -- logging currently always goes through
+  format: "text"                      # Go's standard `log` package regardless of these.
+
+storage:
+  db_path: ""                         # SQLite file path; empty = in-memory (history lost on restart)
+
+notifications:                        # Fired on deployment success/failure/rollback
+  on_failure: true                    # default: true
+  on_rollback: true                   # default: true
+  # on_success: false                 # default: false
+  # slack:
+  #   webhook_url: "https://hooks.slack.com/services/..."
+  # discord:
+  #   webhook_url: "https://discord.com/api/webhooks/..."
+  # webhook:
+  #   url: "https://example.com/hooks/deploydeck"
 
 services:
   myapp:
@@ -237,6 +255,7 @@ Environment variables override config file values:
 | `DEPLOYDECK_CLONE_TOKEN` | `clone_token` (all services) | `ghp_xxx...` |
 | `DEPLOYDECK_RATE_LIMIT_RPM` | `rate_limit.requests_per_minute` | `10` |
 | `DEPLOYDECK_RATE_LIMIT_BURST` | `rate_limit.burst_size` | `5` |
+| `DEPLOYDECK_DB_PATH` | `storage.db_path` | `/var/lib/deploydeck/deployments.db` |
 
 ### Service Modes: Pull vs Build
 
@@ -455,7 +474,7 @@ DeployDeck supports three authentication methods. Use one per request:
 | **GitLab Token** | `X-GitLab-Token` | Plain token string | GitLab webhooks |
 | **DeployDeck Secret** | `X-DeployDeck-Secret` | Plain string or `sha256=<hmac>` | CI/CD pipelines, manual triggers |
 
-All methods use constant-time comparison (`hmac.Equal()`) to prevent timing attacks.
+All methods use constant-time comparison to prevent timing attacks: `hmac.Equal()` for the two HMAC-signature paths (GitHub, and DeployDeck when the secret is `sha256=...`), `subtle.ConstantTimeCompare()` for the plain GitLab token and plain DeployDeck secret paths.
 
 **Authentication check order:**
 
@@ -534,18 +553,27 @@ Trigger a deployment for the specified service. Requires authentication.
 
 ### POST /api/rollback/:service
 
-Manually trigger a rollback for the specified service. Requires authentication.
-
-> **Note:** This endpoint is currently a stub and will be fully implemented with persistent storage in a future release.
+Roll the service back to its last tagged snapshot. Requires the same authentication as `/api/deploy/:service`. Fails with `404` if no rollback tag exists yet (i.e. the service has never deployed successfully with rollback enabled).
 
 **URL Parameters:**
 - `:service` - The service name as defined in your config.yaml
 
 **Request Headers:** Same as deploy endpoint.
 
+**Response:**
+
+```json
+{
+  "status": "success",
+  "deployment_id": "dep_124",
+  "service": "myapp",
+  "message": "rolled back to myapp:rollback-1707750000"
+}
+```
+
 ### GET /api/deployments
 
-List all deployments stored in memory. Deployments are not persisted across restarts.
+List all deployments. Requires authentication (same three methods as deploy/rollback). SQLite-backed (persists across restarts) when `storage.db_path` is set; otherwise in-memory only (history lost on restart).
 
 **Response:**
 
@@ -575,6 +603,14 @@ List all deployments stored in memory. Deployments are not persisted across rest
 | `success` | Completed successfully |
 | `failed` | Failed (no rollback available or rollback disabled) |
 | `rolled_back` | Failed and rolled back to previous version |
+
+### GET /api/deployments/:id/logs
+
+Log lines for a single deployment, polled by `deploydeck logs -f`. No authentication required.
+
+```json
+{"deployment_id": "dep_123", "service": "myapp", "status": "success", "logs": ["pulling image...", "starting container...", "health check passed"]}
+```
 
 ### GET /api/health
 
@@ -620,17 +656,30 @@ mkdir -p /opt/deploydeck
 ```ini
 # /etc/systemd/system/deploydeck.service
 [Unit]
-Description=DeployDeck - Container Deployment Server
-After=network.target docker.service
+Description=DeployDeck - Your container deployment command center
+After=docker.service
 Requires=docker.service
 
 [Service]
 Type=simple
 User=root
+Group=docker
 WorkingDirectory=/opt/deploydeck
 ExecStart=/usr/local/bin/deploydeck --config /opt/deploydeck/config.yaml
 Restart=always
 RestartSec=5
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=deploydeck
+
+# Environment
+Environment="DEPLOYDECK_LOG_LEVEL=info"
 
 [Install]
 WantedBy=multi-user.target
@@ -763,9 +812,10 @@ open http://localhost:9000/dashboard/
 
 ### Authentication
 
-The dashboard reads deployment data from `GET /api/deployments`, which requires the same `webhook_secret` used for webhook authentication.
+The dashboard has two independent layers of protection:
 
-On first visit, enter your secret in the **API Secret** field in the top-right corner and click **Save**. The secret is stored in `localStorage` and sent as `X-DeployDeck-Secret` on every request. It persists across page reloads.
+1. **Page-level (optional):** set both `dashboard.username` and `dashboard.password` in `config.yaml` to protect `/dashboard/*` with HTTP Basic Auth (constant-time credential comparison). Leave either blank to disable this layer.
+2. **API-level:** the dashboard's own JavaScript reads deployment data from `GET /api/deployments`, which always requires the same `webhook_secret` used for webhook authentication. On first visit, enter your secret in the **API Secret** field in the top-right corner and click **Save**. The secret is stored in `localStorage` and sent as `X-DeployDeck-Secret` on every request; it persists across page reloads.
 
 ### Services
 
@@ -800,10 +850,12 @@ Click **View Logs** on any deployment to open a modal with the full log output c
 
 ```yaml
 dashboard:
-  enabled: false   # Set to true to enable the dashboard at /dashboard/
+  enabled: false     # Set to true to serve the dashboard at /dashboard/
+  username: "admin"     # Optional -- with password, enables HTTP Basic Auth on /dashboard/*
+  password: "change-me" # Optional -- both must be set to enable Basic Auth
 ```
 
-There are no username/password fields currently enforced by the dashboard — access is controlled solely by the `webhook_secret`.
+Basic Auth (page-level) is separate from the `webhook_secret` entered in the dashboard UI (API-level) — see Authentication above.
 
 </section>
 
@@ -811,11 +863,11 @@ There are no username/password fields currently enforced by the dashboard — ac
 
 ## CLI Reference
 
-DeployDeck provides a CLI with several subcommands for managing and inspecting your deployment server.
+`cmd/deploydeck` is a single Cobra binary. Run it with no subcommand to start the webhook server; every other subcommand is a thin HTTP client against a running server.
 
 ### deploydeck
 
-The main command starts the DeployDeck webhook server.
+The default (no subcommand) invocation starts the webhook server.
 
 ```bash
 deploydeck [flags]
@@ -825,9 +877,10 @@ deploydeck [flags]
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `--config` | Path to configuration file | `config.yaml` |
-| `--port` | Server listen port | `9000` |
-| `--version` | Print version and exit | - |
+| `--config`, `-c` | Path to configuration file | `config.yaml` |
+| `--port` | Server listen port (overrides `server.port`) | (from config) |
+| `--server`, `-s` | Remote server URL (client subcommands only) | `http://localhost:9000` or `$DEPLOYDECK_SERVER` |
+| `--secret` | Auth secret sent as `X-DeployDeck-Secret` (client subcommands only) | `$DEPLOYDECK_SECRET` |
 
 **Examples:**
 
@@ -837,43 +890,83 @@ deploydeck
 
 # Start with custom config and port
 deploydeck --config /opt/deploydeck/config.yaml --port 8080
-
-# Print version
-deploydeck --version
 ```
+
+There is no `--version` flag — use the `version` subcommand instead (below).
+
+### deploydeck init
+
+Interactively scaffolds `config.yaml` for a single service, generates a random webhook secret, and prints a ready-to-paste CI/CD snippet.
+
+```bash
+deploydeck init --service myapp --compose-file /opt/apps/docker-compose.yml
+```
+
+**Key flags:** `--service`, `--compose-file`, `--service-name`, `--working-dir`, `--mode` (`pull`\|`build`, default `pull`), `--health-url`, `--branch` (default `main`), `--repo`, `--webhook-secret`, `--public-url`, `--ci` (`github`\|`gitlab`\|`none`, default `github`), `--yes`/`-y` (skip prompts; requires `--service` and `--compose-file`), `--force` (overwrite an existing config file).
 
 ### deploydeck doctor
 
-Checks the system environment and reports any issues that might prevent DeployDeck from running correctly.
+Checks the local environment and configuration.
 
 ```bash
 deploydeck doctor
 ```
 
 **Checks performed:**
-- Docker is installed and accessible
-- Docker Compose is available
-- Configuration file is valid
-- Required directories exist
-- Docker socket is accessible
+- Docker CLI available
+- Docker daemon running
+- Docker Compose available
+- Git available (warning only — needed for build mode)
+- Config file loads and validates
+- At least one service is configured
+
+### deploydeck deploy
+
+Triggers a deployment via `POST /api/deploy/:service`.
+
+```bash
+deploydeck deploy myapp --image ghcr.io/user/myapp --tag v1.2.3
+```
+
+In pull mode, pass `--image` and `--tag`. In build mode, the server uses the repository configured in `config.yaml` — no flags needed.
+
+### deploydeck rollback
+
+Triggers a manual rollback via `POST /api/rollback/:service`.
+
+```bash
+deploydeck rollback myapp
+```
 
 ### deploydeck status
 
-Shows the current status of the DeployDeck server and recent deployments.
+Calls `GET /api/deployments` and prints the most recent deployment per service (service, status, image, age) as a table.
 
 ```bash
 deploydeck status
 ```
 
-**Output includes:**
-- Server running state
-- Number of configured services
-- Recent deployment history
-- Current service states
+### deploydeck logs
+
+Prints the logs for the most recent deployment of a service.
+
+```bash
+deploydeck logs myapp -f
+```
+
+With `--follow`/`-f`, polls every 2 seconds and prints new lines as they appear, stopping automatically once the deployment reaches a terminal state (`success`, `failed`, or `rolled_back`).
+
+### deploydeck config
+
+Prints the services configured in the local `config.yaml` (mode, branch, health check, rollback, timeout) plus the configured server address — reads the file directly, no running server required.
+
+```bash
+deploydeck config
+```
 
 ### deploydeck version
 
-Prints the DeployDeck version, build date, and commit hash.
+Prints the build version.
 
 ```bash
 deploydeck version
@@ -882,9 +975,7 @@ deploydeck version
 **Example output:**
 
 ```
-DeployDeck v0.1.0
-Build date: 2026-02-12
-Commit: a1b2c3d
+DeployDeck dev
 ```
 
 </section>
